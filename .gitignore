@@ -1,2 +1,3 @@
 *.qif
 .env
+.idea/
