@@ -1,4 +1,5 @@
 import datetime as dt
+from hashlib import sha256
 
 
 def simple_operation(description_string):
@@ -92,6 +93,10 @@ class Item:
             "Unrecognised payment type"
         )
 
+    @property
+    def id(self):
+        return sha256(f"{self.date}:{self.description}:{self.amount}".encode("utf-8")).hexdigest()
+
 
 class Account:
     def __init__(
@@ -179,7 +184,5 @@ class Account:
 if __name__ == "__main__":
     account = Account.load("Statements09012927366132.qif")
 
-    bagels = account.filter(
-        entity="BAGELMANIA"
-    )
-    print(bagels.total)
+    for item in account:
+        print(item.id)
