@@ -1,17 +1,40 @@
 import datetime as dt
 
-from enum import Enum
+
+def simple_operation(description_string):
+    return description_string.split(",")[0]
 
 
-class Type(Enum):
-    DirectDebit = 1
-    Card = 2
-    Unknown = 0
+class PaymentType:
+    def __init__(
+            self,
+            prefix="PDIRECT DEBIT PAYMENT TO ",
+            operation=simple_operation
+    ):
+        self.prefix = prefix
+        self.operation = operation
+
+    def matches(self, description_string):
+        return description_string.startswith(
+            self.prefix
+        )
+
+    def __call__(self, description_string):
+        return self.operation(
+            description_string.replace(
+                self.prefix,
+                ""
+            )
+        )
 
 
-type_tuples = [
-    ("PDIRECT DEBIT PAYMENT TO ", Type.DirectDebit),
-    ("PCARD PAYMENT TO ", Type.Card)
+payment_types = [
+    PaymentType("PDIRECT DEBIT PAYMENT TO "),
+    PaymentType("PCARD PAYMENT TO "),
+    PaymentType(
+        "PINTEREST PAID AFTER TAX 0.00 DEDUCTED",
+        lambda _: "INTEREST"
+    )
 ]
 
 
@@ -51,43 +74,112 @@ class Item:
 
     @property
     def entity(self):
-        entity = self.description
-        for type_prefix, _ in type_tuples:
-            entity = entity.replace(
-                type_prefix,
-                ""
+        try:
+            return self.payment_type(
+                self.description
             )
-
-        return entity.split(",")[0]
+        except TypeError:
+            return self.description
 
     @property
     def payment_type(self):
-        for type_tuple in type_tuples:
-            if self.description.startswith(
-                    type_tuple[0]
+        for payment_type in payment_types:
+            if payment_type.matches(
+                    self.description
             ):
-                return type_tuple[1]
-        return Type.Unknown
+                return payment_type
+        raise TypeError(
+            "Unrecognised payment type"
+        )
+
+
+class Account:
+    def __init__(
+            self,
+            items
+    ):
+        self.items = items
+
+    def __getitem__(self, item):
+        return self.items[item]
+
+    def __len__(self):
+        return len(self.items)
+
+    def __str__(self):
+        return str(self.items)
+
+    @property
+    def entities(self):
+        return {
+            item.entity
+            for item
+            in self.items
+        }
+
+    @property
+    def expenses(self):
+        return Account(
+            [
+                item
+                for item in self.items
+                if item.amount <= 0
+            ]
+        )
+
+    @property
+    def profits(self):
+        return Account(
+            [
+                item
+                for item in self.items
+                if item.amount > 0
+            ]
+        )
+
+    @classmethod
+    def load(cls, filename):
+        with open(filename) as f:
+            string = f.read()
+
+        item_strings = string.split("^")
+        items = []
+
+        for item_string in item_strings:
+            item_array = item_string.split("\n")
+            try:
+                items.append(
+                    Item.from_array(
+                        item_array
+                    )
+                )
+            except IndexError:
+                pass
+
+        return Account(items)
+
+    def filter(self, **kwargs):
+        return Account([
+            item for item
+            in self.items
+            if all([
+                getattr(item, key) == value
+                for key, value in kwargs.items()
+            ])
+        ])
+
+    @property
+    def total(self):
+        return sum([
+            item.amount
+            for item in self
+        ])
 
 
 if __name__ == "__main__":
-    with open("Statements09012927366132.qif") as f:
-        string = f.read()
+    account = Account.load("Statements09012927366132.qif")
 
-    item_strings = string.split("^")
-    items = []
-
-    for item_string in item_strings:
-        item_array = item_string.split("\n")
-        try:
-            items.append(
-                Item.from_array(
-                    item_array
-                )
-            )
-        except IndexError:
-            pass
-
-    for item in items:
-        if item.payment_type == Type.Unknown:
-            print(item.description)
+    bagels = account.filter(
+        entity="BAGELMANIA"
+    )
+    print(bagels.total)
