@@ -1,4 +1,5 @@
 import datetime as dt
+import json
 from hashlib import sha256
 
 
@@ -61,6 +62,9 @@ class Category:
             entities=category_dict["entities"]
         )
 
+    def __str__(self):
+        return self.name
+
 
 class Entity:
     def __init__(self, name):
@@ -74,6 +78,9 @@ class Entity:
 
     def __hash__(self):
         return hash(self.name)
+
+    def __eq__(self, other):
+        return self.name == other.name
 
 
 class Item:
@@ -140,9 +147,11 @@ class Item:
 class Account:
     def __init__(
             self,
-            items
+            items,
+            categories=None
     ):
         self.items = items
+        self.categories = categories or list()
 
     def __getitem__(self, item):
         return self.items[item]
@@ -158,7 +167,7 @@ class Account:
         return {
             item.entity
             for item
-            in self.items
+            in self
         }
 
     @property
@@ -166,7 +175,7 @@ class Account:
         return Account(
             [
                 item
-                for item in self.items
+                for item in self
                 if item.amount <= 0
             ]
         )
@@ -176,14 +185,14 @@ class Account:
         return Account(
             [
                 item
-                for item in self.items
+                for item in self
                 if item.amount > 0
             ]
         )
 
     @classmethod
     def load(cls, filename):
-        with open(filename) as f:
+        with open(f"{filename}.qif") as f:
             string = f.read()
 
         item_strings = string.split("^")
@@ -200,12 +209,33 @@ class Account:
             except IndexError:
                 pass
 
-        return Account(items)
+        try:
+            with open(f"{filename}_categories.json") as f:
+                categories = list(map(
+                    Category.from_dict,
+                    json.load(f)
+                ))
+        except FileNotFoundError:
+            print("Categories file not found")
+            categories = list()
+
+        return Account(items, categories)
+
+    def save_categories(self, filename):
+        with open(f"{filename}_categories.json") as f:
+            json.dump(
+                [
+                    category.dict
+                    for category
+                    in self.categories
+                ],
+                f
+            )
 
     def filter(self, **kwargs):
         return Account([
             item for item
-            in self.items
+            in self
             if all([
                 getattr(item, key) == value
                 for key, value in kwargs.items()
@@ -220,8 +250,35 @@ class Account:
         ])
 
 
-if __name__ == "__main__":
-    account = Account.load("Statements09012927366132.qif")
+def main(name):
+    account = Account.load(name)
 
-    for item in account:
-        print(item.id)
+    for entity in account.expenses.entities:
+        print(entity)
+        print("1) New category")
+        for i, category in enumerate(account.categories):
+            print(f"{i + 2}) {category}")
+        value = int(input())
+        if value == 1:
+            name = input(
+                "Enter a name for the new category "
+            )
+            is_included = "y" in input(
+                "Should entities in this category be included (y/n)? "
+            )
+            account.categories.append(
+                Category(
+                    name=name,
+                    is_included=is_included
+                )
+            )
+        account.categories[value - 2].entities.add(
+            entity
+        )
+    account.save_categories(
+        name
+    )
+
+
+if __name__ == "__main__":
+    main("Statements09012927366132")
