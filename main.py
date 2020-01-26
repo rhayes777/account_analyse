@@ -39,6 +39,43 @@ payment_types = [
 ]
 
 
+class Category:
+    def __init__(self, name, is_included, entities=None):
+        self.name = name
+        self.entities = set(entities or {})
+        self.is_included = is_included
+
+    @property
+    def dict(self):
+        return {
+            "name": self.name,
+            "entities": list(map(str, self.entities)),
+            "is_included": self.is_included
+        }
+
+    @classmethod
+    def from_dict(cls, category_dict):
+        return Category(
+            name=category_dict["name"],
+            is_included=category_dict["is_included"],
+            entities=category_dict["entities"]
+        )
+
+
+class Entity:
+    def __init__(self, name):
+        self.name = name
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return f"<{self.__class__} {str(self)}>"
+
+    def __hash__(self):
+        return hash(self.name)
+
+
 class Item:
     def __init__(
             self,
@@ -76,8 +113,10 @@ class Item:
     @property
     def entity(self):
         try:
-            return self.payment_type(
-                self.description
+            return Entity(
+                self.payment_type(
+                    self.description
+                )
             )
         except TypeError:
             return self.description
