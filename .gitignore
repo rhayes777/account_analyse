@@ -1,3 +1,4 @@
 *.qif
 .env
 .idea/
+__pycache__

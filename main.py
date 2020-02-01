@@ -1,5 +1,6 @@
 import datetime as dt
 import json
+from collections import Iterable
 from hashlib import sha256
 
 
@@ -80,7 +81,15 @@ class Entity:
         return hash(self.name)
 
     def __eq__(self, other):
+        if isinstance(other, str):
+            return self.name == other
         return self.name == other.name
+
+    def __iter__(self):
+        return iter(self.name)
+
+    def __getitem__(self, item):
+        return self.name[item]
 
 
 class Item:
@@ -117,6 +126,12 @@ class Item:
     def __repr__(self):
         return f"<{self.__class__.__name__} {str(self)}>"
 
+    def __gt__(self, other):
+        return self.date > other.date
+
+    def __lt__(self, other):
+        return self.date < other.date
+
     @property
     def entity(self):
         try:
@@ -150,7 +165,7 @@ class Account:
             items,
             categories=None
     ):
-        self.items = items
+        self.items = sorted(items)
         self.categories = categories or list()
 
     def __getitem__(self, item):
@@ -242,6 +257,16 @@ class Account:
             ])
         ])
 
+    def filter_contains(self, **kwargs):
+        return Account([
+            item for item
+            in self
+            if all([
+                value in getattr(item, key)
+                for key, value in kwargs.items()
+            ])
+        ])
+
     @property
     def total(self):
         return sum([
@@ -250,7 +275,7 @@ class Account:
         ])
 
 
-def main(name):
+def sort_expenses(name):
     account = Account.load(name)
 
     for entity in account.expenses.entities:
@@ -280,5 +305,5 @@ def main(name):
     )
 
 
-if __name__ == "__main__":
-    main("Statements09012927366132")
+# if __name__ == "__main__":
+#     sort_expenses("Statements09012927366132")
