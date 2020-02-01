@@ -1,6 +1,6 @@
+import csv
 import datetime as dt
 import json
-from collections import Iterable
 from hashlib import sha256
 
 
@@ -103,6 +103,13 @@ class Item:
         self.amount = amount
         self.description = description
 
+    def row(self):
+        return [
+            self.date,
+            self.amount,
+            self.description
+        ]
+
     @classmethod
     def from_array(
             cls,
@@ -176,6 +183,14 @@ class Account:
 
     def __str__(self):
         return str(self.items)
+
+    def write_csv(self, filename):
+        with open(filename, "w+") as f:
+            writer = csv.writer(f)
+            for item in self:
+                writer.writerow(
+                    item.row()
+                )
 
     @property
     def entities(self):
@@ -303,7 +318,6 @@ def sort_expenses(name):
     account.save_categories(
         name
     )
-
 
 # if __name__ == "__main__":
 #     sort_expenses("Statements09012927366132")
