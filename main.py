@@ -200,6 +200,11 @@ class Account:
             in self
         }
 
+    def items_for_entity(self, entity):
+        for item in self:
+            if item.entity == entity:
+                yield item
+
     @property
     def expenses(self):
         return Account(
@@ -252,7 +257,7 @@ class Account:
         return Account(items, categories)
 
     def save_categories(self, filename):
-        with open(f"{filename}_categories.json") as f:
+        with open(f"{filename}_categories.json", "w+") as f:
             json.dump(
                 [
                     category.dict
@@ -290,8 +295,8 @@ class Account:
         ])
 
 
-def sort_expenses(name):
-    account = Account.load(name)
+def sort_expenses(account_name):
+    account = Account.load(account_name)
 
     for entity in account.expenses.entities:
         print(entity)
@@ -315,9 +320,20 @@ def sort_expenses(name):
         account.categories[value - 2].entities.add(
             entity
         )
-    account.save_categories(
-        name
-    )
+        account.save_categories(
+            account_name
+        )
 
-# if __name__ == "__main__":
-#     sort_expenses("Statements09012927366132")
+    with open("expenses.csv", "w+") as f:
+        writer = csv.writer(f)
+        for category in account.categories:
+            if category.is_included:
+                for entity in category.entities:
+                    for item in account.expenses.items_for_entity(
+                            entity
+                    ):
+                        writer.writerow(item.row())
+
+
+if __name__ == "__main__":
+    sort_expenses("Statements09012927366132")
