@@ -105,9 +105,10 @@ class Item:
 
     def row(self):
         return [
-            self.date,
-            self.amount,
-            self.description
+            self.date.strftime(
+                "%Y-%d-%m"
+            ),
+            abs(self.amount)
         ]
 
     @classmethod
@@ -174,6 +175,15 @@ class Account:
     ):
         self.items = sorted(items)
         self.categories = categories or list()
+
+    @property
+    def categorised_entities(self):
+        entities = set()
+        for category in self.categories:
+            entities.update(
+                category.entities
+            )
+        return entities
 
     def __getitem__(self, item):
         return self.items[item]
@@ -299,6 +309,8 @@ def sort_expenses(account_name):
     account = Account.load(account_name)
 
     for entity in account.expenses.entities:
+        if entity in account.categorised_entities:
+            continue
         print(entity)
         print("1) New category")
         for i, category in enumerate(account.categories):
@@ -332,7 +344,7 @@ def sort_expenses(account_name):
                     for item in account.expenses.items_for_entity(
                             entity
                     ):
-                        writer.writerow(item.row())
+                        writer.writerow(item.row() + [category.name])
 
 
 if __name__ == "__main__":
